@@ -39,7 +39,7 @@ APK=out/tvhome.apk
 if [ ! -f "$APK" ]; then
   APK=$(mktemp -d)/tvhome.apk
   echo "Downloading the home screen…"
-  curl -fsSL -o "$APK" https://github.com/Ansub/tv-detox/releases/latest/download/tvhome.apk
+  curl -fsSL -o "$APK" https://github.com/aagarwal1012/tv-detox/releases/latest/download/tvhome.apk
 fi
 
 echo "Installing… If your TV shows a Google Play Protect message, follow it on the TV to allow the install."
@@ -220,8 +220,31 @@ if [ -n "$turned_off" ] && [ "$winner" != "$ME" ]; then
   fi
 fi
 
+# Google TV keeps sending Home to its own home screen while it's on. This app's small
+# accessibility service opens this home screen whenever Google TV's appears, and once at
+# power-on. It reads no screen content. HOME_FIX=0 skips it; undo.sh turns it off.
+SVC=com.ansub.tvhome/com.ansub.tvhome.HomeRedirectService
+home_fix=
+if [ -n "$google_tv" ] && [ -z "$may_turn_off" ] && [ "$HOME_FIX" != 0 ]; then
+  cur=$(sh_tv settings get secure enabled_accessibility_services) || cur=
+  case "$cur" in
+    *"$SVC"*) home_fix=1 ;;
+    ""|null) sh_tv settings put secure enabled_accessibility_services "$SVC" && home_fix=1 ;;
+    *) sh_tv settings put secure enabled_accessibility_services "$cur:$SVC" && home_fix=1 ;;
+  esac
+  if [ -n "$home_fix" ]; then
+    sh_tv settings put secure accessibility_enabled 1 || true
+    echo "Turned on the Home button fix: Home now opens this home screen, Google TV's stays on."
+    sleep 2
+  else
+    echo "Couldn't turn on the Home button fix. Turn on \"Home button opens TV Detox\" in Settings > Accessibility." >&2
+  fi
+fi
+
 adb -s "$TV" shell input keyevent KEYCODE_HOME
-if [ "$(current_home)" = "$ME" ]; then
+if [ -n "$home_fix" ]; then
+  echo "Done. Press Home on your remote to see it."
+elif [ "$(current_home)" = "$ME" ]; then
   echo "Done. Press Home on your remote to see it."
 elif [ -n "$reverted" ]; then
   echo "Installed, but your TV's own home screen still opens when you press Home."

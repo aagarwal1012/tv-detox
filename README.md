@@ -1,3 +1,7 @@
+> [!NOTE]
+> **This is a fork of [Ansub/tv-detox](https://github.com/Ansub/tv-detox)** that adds a **Home button fix for Google TV**.
+> All credit for TV Detox goes to [Ansub Khan](https://github.com/Ansub). See [What this fork adds](#what-this-fork-adds).
+
 <div align="center">
 
 # TV Detox
@@ -70,7 +74,7 @@ My TV is a <brand and model>.
    (com.google.android.apps.tv.launcherx). If you're not
    sure, leave it on.
 5. Install the home screen: download
-   https://github.com/Ansub/tv-detox and run its
+   https://github.com/aagarwal1012/tv-detox and run its
    install.sh with my TV and these apps: <your apps>.
 6. Turn off animations and the screensaver, and make the TV
    sleep after 5 minutes.
@@ -84,6 +88,35 @@ That's it. It asks you before every change.
 
 > [!NOTE]
 > This is what worked for us, not professional advice. Use it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
+
+## What this fork adds
+
+**On Google TV, Home opens this home screen, and Google TV's own home screen stays on.**
+
+On Google TV, turning off Google TV's home screen (`com.google.android.apps.tv.launcherx`) can leave the TV stuck restarting, so upstream `install.sh` leaves it on. But then Home keeps opening Google TV's screen, with its sponsored rows, even after this home screen takes over Android's Home setting. And on some remotes, Button Mapper can't catch the Home key at all.
+
+This fork adds a tiny accessibility service, [`HomeRedirectService`](src/com/ansub/tvhome/HomeRedirectService.java) (about 80 lines):
+
+- **Home button:** when Google TV's home screen comes to the front, it opens this one straight away, with no delay.
+- **Power-on:** Google TV's home appears a few seconds before Android starts accessibility services, so the service would miss it. If the service starts within 2 minutes of boot, it opens this home screen once. If it restarts later (an app update, say), it never pulls you out of what you're watching.
+- It only reacts to Google TV's `HomeActivity`, so its account and settings screens still work.
+- It reads no screen content (`canRetrieveWindowContent` is off), and nothing is turned off or uninstalled.
+
+`install.sh` turns it on by itself on Google TV. Skip that with `HOME_FIX=0`. `undo.sh` turns it off.
+
+**Limits:** Google TV's home screen still shows for a few seconds at power-on, and briefly when you press Home. Pressing Back from this home screen can bring Google TV's up for a moment before it switches back.
+
+**Tested on** a Skyworth Google TV (SWTV-24AE-4K NF, Android 14, MediaTek, 32-bit ARM), with several restarts.
+
+Turn it on or off by hand:
+
+```sh
+adb shell settings put secure enabled_accessibility_services com.ansub.tvhome/com.ansub.tvhome.HomeRedirectService
+adb shell settings put secure accessibility_enabled 1
+adb shell settings delete secure enabled_accessibility_services   # off (removes all accessibility services)
+```
+
+Or use Settings → Accessibility → **Home button opens TV Detox**.
 
 ## Help
 

@@ -60,6 +60,16 @@ if [ -n "$failed" ]; then
   exit 1
 fi
 # In the same argument as rm, like the read above: Git Bash on Windows turns an argument that starts with / into a Windows path.
+# Turn off the Home button fix, keeping any other accessibility services as they were.
+SVC=com.ansub.tvhome/com.ansub.tvhome.HomeRedirectService
+cur=$(adb -s "$TV" shell settings get secure enabled_accessibility_services 2>/dev/null | tr -d '\r') || cur=
+case "$cur" in
+  *"$SVC"*)
+    new=$(printf '%s\n' "$cur" | tr ':' '\n' | grep -Fvx "$SVC" | paste -sd: - || true)
+    if [ -n "$new" ]; then adb -s "$TV" shell settings put secure enabled_accessibility_services "$new"
+    else adb -s "$TV" shell settings delete secure enabled_accessibility_services >/dev/null; fi
+    echo "Turned off the Home button fix" ;;
+esac
 adb -s "$TV" shell "rm -f $LIST"
 adb -s "$TV" uninstall com.ansub.tvhome >/dev/null 2>&1 || true
 adb -s "$TV" shell input keyevent KEYCODE_HOME
