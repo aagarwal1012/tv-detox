@@ -43,7 +43,7 @@ Claude Code or Codex does the work. You just press OK on the remote.
 ## Get started
 
 > [!WARNING]
-> **Google TV and Chromecast with Google TV:** don't turn off the TV's own home screen. On some of these devices that left them stuck restarting, and the only fix was a factory reset. Since v1.4.1, `install.sh` leaves it on for Google TV unless you opt in with `GOOGLE_TV=1`. The cleanup still works and makes the TV faster. You just keep Google TV's own home screen.
+> **Google TV and Chromecast with Google TV:** don't turn off the TV's own home screen. On some of these devices that left them stuck restarting, and the only fix was a factory reset. Since v1.4.1, `install.sh` leaves it on for Google TV unless you opt in with `GOOGLE_TV=1`. **In this fork you don't need to:** the [Home button fix](#what-this-fork-adds) makes Home open this home screen while Google TV's stays on.
 
 **1. Turn on developer mode on the TV.**
 Settings → Device Preferences → About → press **Build** 7 times. Then turn on **USB debugging** in **Developer options**. [Stuck?](#help)
@@ -93,6 +93,10 @@ That's it. It asks you before every change.
 
 **On Google TV, Home opens this home screen, and Google TV's own home screen stays on.**
 
+<img src="docs/google-tv-before-after.png" alt="Before: Google TV home with a sponsored banner. After: the TV Detox home screen" width="100%">
+
+<sub>A Skyworth Google TV. Before: Google TV's home in Apps only mode, still with a sponsored banner. After: Home opens TV Detox.</sub>
+
 On Google TV, turning off Google TV's home screen (`com.google.android.apps.tv.launcherx`) can leave the TV stuck restarting, so upstream `install.sh` leaves it on. But then Home keeps opening Google TV's screen, with its sponsored rows, even after this home screen takes over Android's Home setting. And on some remotes, Button Mapper can't catch the Home key at all.
 
 This fork adds a tiny accessibility service, [`HomeRedirectService`](src/com/ansub/tvhome/HomeRedirectService.java) (about 80 lines):
@@ -117,6 +121,8 @@ adb shell settings delete secure enabled_accessibility_services   # off (removes
 ```
 
 Or use Settings → Accessibility → **Home button opens TV Detox**.
+
+**Also new in this fork's Help:** [Skyworth notes](#skyworth-notes), [hiding Google TV's ads](#google-tv-ads), and [blocking ads inside apps](#in-app-ads).
 
 ## Help
 
@@ -146,7 +152,7 @@ Menus differ a bit by brand. If you're stuck, ask Claude or Codex: *"I have a \<
 <summary><b>Which TVs does it work on?</b></summary>
 <br>
 
-Android TV 9 (a real TV), 11 and 12, and Google TV 14 (also a real TCL TV, see [TCL notes](#tcl-notes)). Every change is tested automatically on emulators.
+Android TV 9 (a real TV), 11 and 12, and Google TV 14 (real TCL and Skyworth TVs, see [TCL notes](#tcl-notes) and [Skyworth notes](#skyworth-notes)). Every change is tested automatically on emulators.
 
 </details>
 
@@ -269,6 +275,45 @@ adb shell ime set <the keyboard you noted>
 
 </details>
 
+<a id="skyworth-notes"></a>
+<details>
+<summary><b>Skyworth TVs: what worked, and what to keep</b></summary>
+<br>
+
+Tested on a Skyworth SWTV-24AE-4K NF (Google TV, Android 14, MediaTek, 1.8 GB of RAM, 32-bit ARM). It was restarted after every batch and started normally each time. Free memory went from about 450 MB to about 565 MB, though part of that is just from restarting: the first number was taken after about a day switched on.
+
+**Home screen.** Google TV's home screen stayed on. Android's Home setting and Button Mapper couldn't move the Home button: its Bluetooth remote sends `KEY_HOMEPAGE`, which never reaches accessibility key filters. This fork's [Home button fix](#what-this-fork-adds) worked, including after restarts.
+
+**Debugging turns itself off after a restart.** After rebooting, `adb connect <TV_IP>:5555` was refused until **USB debugging** was switched off and on again in Developer options. That's why it's not safe to turn off Google TV's home screen on this TV: if it got stuck restarting, you couldn't reconnect to undo it.
+
+**Safe to turn off**, if you don't use them:
+
+| App | Package |
+| --- | --- |
+| Skyworth e-manual | `com.Smartdevice.emanual` |
+| After-sales info, warranty activation reporting | `com.smartdevice.aftersale`, `com.smartdevice.recordactivation` |
+| Skyworth recommendations, "My Apps" | `com.smartdevice.recommendation`, `com.smartdevice.myapp` |
+| Skyworth cleaner | `com.smartdevice.dailymanage` |
+| Karaoke mic and tuning | `com.audiocn.karaoke.global.micmanager`, `com.loostone.tuning` |
+| Interactive TV for the UK (MHEG) and Brazil (Ginga) | `org.obs.mhegservice`, `tv.mopa.ginga` |
+| USB media player | `com.tianci.localmedia` |
+| "Ok Google" voice enrollment | `com.android.hotwordenrollment.okgoogle`, `com.android.hotwordenrollment.xgoogle` |
+
+**Keep these on:**
+
+- `com.mediatek.tv.agent`: the remote's Input, Settings and Netflix buttons.
+- `com.smartdevice.global.service`: remote keys and Bluetooth pairing.
+- `com.mediatek.tis`: the HDMI inputs.
+- `com.smartdevice.duplebluetooth`: the Bluetooth Audio tile.
+- `com.smartdevice.dailyshortcut`: picture and energy modes, Art Time and IP control. It's not clearly safe to turn off.
+- `com.smartdevice.factory`, `com.mediatek.tv.systemupdater`: the factory service and system updates.
+
+**Live TV turns itself back on.** `com.cltv.hybrid` (Live TV / antenna) showed as off, then came back on at the next restart, so leave it on. HDMI doesn't depend on it.
+
+**Screen mirroring:** CastPlay (`com.smartdevice.dtv.icast`) mirrors Android phones. It's a normal app, so you can add it to this home screen.
+
+</details>
+
 <details>
 <summary><b>The Claude app says it can't reach my TV</b></summary>
 <br>
@@ -322,6 +367,42 @@ sh candidates.sh <TV_IP>
 <br>
 
 You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM.
+
+</details>
+
+<a id="google-tv-ads"></a>
+<details>
+<summary><b>Google TV's home screen still shows ads and "Top picks"</b></summary>
+<br>
+
+Those come from Google TV's home screen itself, not from an app you can turn off. Turn on **Apps only mode**: Settings → Accounts & Profiles → your account → **Apps only mode**. It removes the recommendation rows and the Movies, Shows and Gemini tabs.
+
+It also turns off Google search and voice. A "featured" banner can still appear at the top, sometimes sponsored. With this fork's Home button fix, you'll rarely see Google TV's screen anyway.
+
+</details>
+
+<a id="in-app-ads"></a>
+<details>
+<summary><b>Can it block ads inside Prime Video, YouTube or Hotstar?</b></summary>
+<br>
+
+No. Prime Video, YouTube and JioHotstar put their ads inside the video stream, from the same servers as the show. A blocker can't separate them, and blocking those servers just breaks playback. For Prime Video, the only way is Amazon's paid ad-free option.
+
+What does help is a blocking DNS for the whole TV. It stops ad and tracking domains in free apps and the system, with no extra app and no memory cost. Android's Private DNS does it:
+
+```sh
+adb shell settings put global private_dns_specifier dns.adguard-dns.com
+adb shell settings put global private_dns_mode hostname
+```
+
+Check it works with `adb shell ping -c1 doubleclick.net`. It should answer from `127.0.0.1`. Then open your apps to be sure they still load. To undo:
+
+```sh
+adb shell settings put global private_dns_mode opportunistic
+adb shell settings delete global private_dns_specifier
+```
+
+On the Skyworth above, Netflix, YouTube, Prime Video and JioHotstar kept working with it on.
 
 </details>
 
@@ -422,7 +503,7 @@ Press **Up** from your apps to reach them. A shortcut your TV has no screen for 
 sh undo.sh <TV_IP>
 ```
 
-This turns your TV's own home screen back on and removes this one. To undo the cleanup too, ask Claude or Codex to reverse everything on its list.
+This turns your TV's own home screen back on, turns off this fork's Home button fix, and removes this home screen. To undo the cleanup too, ask Claude or Codex to reverse everything on its list.
 
 </details>
 
